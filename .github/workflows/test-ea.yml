@@ -1,0 +1,22 @@
+name: Backtest EA on push
+
+on:
+  push:
+    paths:
+      - '**.mq4'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Simulate backtest (placeholder)
+      run: |
+        echo "🔥 เริ่มรันทดสอบ EA..."
+        echo "📁 กำลังตรวจสอบไฟล์: AYA_AntiSideway_v1.mq4"
+        echo "⚠️ (ยังไม่รัน MT4 จริง เพราะยังไม่ได้เชื่อม Docker หรือ Local Tester)"
+        echo "✅ หากต้องการรันจริง จะต้องเชื่อม Docker image หรือส่งเข้า VM"
