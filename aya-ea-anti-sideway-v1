@@ -1,0 +1,77 @@
+//+------------------------------------------------------------------+
+//| AYA_AntiSideway_v1.mq4                                           |
+//| ระบบกรอง Sideway และยิงไม้ตามเทรนด์แบบ Momentum Only          |
+//+------------------------------------------------------------------+
+#property strict
+
+input double LotSize = 0.05;
+input int Slippage = 3;
+input int MagicNumber = 881122;
+input int TrailingStop = 800;
+
+datetime lastBarTime = 0;
+
+//--- Indicator handles
+double emaFast, emaSlow, adxValue;
+double averageBody() {
+   double sum = 0;
+   for (int i = 1; i <= 10; i++) sum += MathAbs(Open[i] - Close[i]);
+   return sum / 10.0;
+}
+bool isMomentum() {
+   return MathAbs(Open[1] - Close[1]) > averageBody() * 1.3;
+}
+bool isBiasBuy() {
+   return Close[1] > Open[1] && Close[1] > iMA(NULL, 0, 7, 0, MODE_EMA, PRICE_CLOSE, 1);
+}
+bool isBiasSell() {
+   return Close[1] < Open[1] && Close[1] < iMA(NULL, 0, 7, 0, MODE_EMA, PRICE_CLOSE, 1);
+}
+bool adxOK() {
+   return iADX(NULL, 0, 14, PRICE_CLOSE, MODE_MAIN, 1) > 20;
+}
+bool noOpenOrder() {
+   for (int i = 0; i < OrdersTotal(); i++)
+      if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+         if (OrderSymbol() == Symbol() && OrderMagicNumber() == MagicNumber)
+            return false;
+   return true;
+}
+void openOrder(bool isBuy) {
+   double price = isBuy ? Ask : Bid;
+   int type = isBuy ? OP_BUY : OP_SELL;
+   double sl = 0, tp = 0;
+
+   OrderSend(Symbol(), type, LotSize, price, Slippage, sl, tp, "AYA Anti-Sideway", MagicNumber, 0, clrDodgerBlue);
+}
+
+void trailStop() {
+   for (int i = 0; i < OrdersTotal(); i++) {
+      if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+         if (OrderSymbol() == Symbol() && OrderMagicNumber() == MagicNumber) {
+            if (OrderType() == OP_BUY) {
+               double newSL = Bid - TrailingStop * Point;
+               if (OrderStopLoss() < newSL)
+                  OrderModify(OrderTicket(), OrderOpenPrice(), newSL, 0, 0, clrLime);
+            } else if (OrderType() == OP_SELL) {
+               double newSL = Ask + TrailingStop * Point;
+               if (OrderStopLoss() > newSL || OrderStopLoss() == 0)
+                  OrderModify(OrderTicket(), OrderOpenPrice(), newSL, 0, 0, clrRed);
+            }
+         }
+   }
+}
+
+void OnTick() {
+   trailStop();
+
+   if (Time[0] == lastBarTime) return;
+   lastBarTime = Time[0];
+
+   if (!noOpenOrder()) return;
+   if (!adxOK()) return;
+   if (!isMomentum()) return;
+
+   if (isBiasBuy()) openOrder(true);
+   else if (isBiasSell()) openOrder(false);
+}
