@@ -1,4 +1,4 @@
-name: Backtest EA on push
+name: Real EA Backtest
 
 on:
   push:
@@ -7,16 +7,31 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  backtest:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: Checkout repo
       uses: actions/checkout@v3
 
-    - name: Simulate backtest (placeholder)
+    - name: Pull MT4 Docker
+      run: docker pull ghcr.io/ea-broker/metatrader-test:latest
+
+    - name: Run EA Backtest
       run: |
-        echo "🔥 เริ่มรันทดสอบ EA..."
-        echo "📁 กำลังตรวจสอบไฟล์: AYA_AntiSideway_v1.mq4"
-        echo "⚠️ (ยังไม่รัน MT4 จริง เพราะยังไม่ได้เชื่อม Docker หรือ Local Tester)"
-        echo "✅ หากต้องการรันจริง จะต้องเชื่อม Docker image หรือส่งเข้า VM"
+        docker run --rm -v ${{ github.workspace }}:/data \
+          ghcr.io/ea-broker/metatrader-test:latest \
+          backtest \
+          --symbol XAUUSD \
+          --timeframe M5 \
+          --ea /data/AYA_AntiSideway_v1.mq4 \
+          --from 2024-01-01 \
+          --to 2024-01-31 \
+          --deposit 10000 \
+          --report /data/backtest-result.html
+
+    - name: Upload backtest result
+      uses: actions/upload-artifact@v3
+      with:
+        name: EA Backtest Report
+        path: backtest-result.html
